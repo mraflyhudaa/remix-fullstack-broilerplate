@@ -32,7 +32,15 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <Links />
       </head>
       <body>
-        {children}
+        <header className="flex items-center justify-between border-b px-4 py-2">
+          <a href="/" className="font-semibold">Remix Boilerplate</a>
+          <div className="flex items-center gap-3">
+            <a className="text-sm underline" href="/dashboard">Dashboard</a>
+            <a className="text-sm underline" href="/login">Login</a>
+            <a className="text-sm underline" href="/register">Register</a>
+          </div>
+        </header>
+        <main>{children}</main>
         <ScrollRestoration />
         <Scripts />
       </body>
@@ -42,4 +50,20 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
 export default function App() {
   return <Outlet />;
+}
+
+export function ErrorBoundary() {
+  return (
+    <html>
+      <head>
+        <title>Application Error</title>
+        <Meta />
+        <Links />
+      </head>
+      <body>
+        <h1 className="m-6 text-xl font-semibold">Something went wrong</h1>
+        <Scripts />
+      </body>
+    </html>
+  );
 }

@@ -2,68 +2,64 @@
 
 ## Prerequisites
 
-- Node.js (v18+)
-- PostgreSQL or MySQL database
-- Package manager (npm, yarn, or pnpm)
+- Node.js (v20+)
+- PostgreSQL database (local or Docker)
+- Package manager (pnpm recommended)
 
 ## Installation Steps
 
 ### 1. Install Dependencies
 
 ```bash
-npm install
+pnpm install
 ```
 
 ### 2. Database Setup
 
-#### For PostgreSQL:
+#### For PostgreSQL (local install):
 
 ```bash
 # Install PostgreSQL if not already installed
 # Create a database
 createdb your_database_name
 
-# Update your .env file with the connection string
-DATABASE_URL="postgresql://username:password@localhost:5432/your_database_name"
+# Create and fill .env with the connection string and session secret
+# See required keys below
 ```
 
-#### For MySQL:
+#### For PostgreSQL (Docker):
 
 ```bash
-# Install MySQL if not already installed
-# Create a database
-mysql -u root -p
-CREATE DATABASE your_database_name;
-
-# Update your .env file with the connection string
-DATABASE_URL="mysql://username:password@localhost:3306/your_database_name"
+docker compose up -d db
 ```
 
 ### 3. Environment Variables
 
+Required environment variables:
+
 ```bash
-cp .env.example .env
-# Edit .env with your database credentials and generate a session secret
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/remix_boiler?schema=public"
+SESSION_SECRET="a-very-long-random-string"
 ```
 
 ### 4. Database Migration
 
 ```bash
 # Generate Prisma client
-npm run db:generate
+pnpm db:generate
 
 # Run migrations
-npm run db:migrate
+pnpm db:migrate
 
 # Seed the database (optional)
-npm run db:seed
+pnpm db:seed
 ```
 
 ### 5. Development
 
 ```bash
 # Start development server
-npm run dev
+pnpm dev
 ```
 
 ## Key Features
@@ -78,51 +74,61 @@ npm run dev
 ### 🔐 Authentication
 
 - Password hashing with bcrypt
-- Session-based authentication
-- Protected routes and middleware
-- User management utilities
+- Session-based authentication (secure cookie)
+- Protected routes via `requireUserId`
+- Auth utilities: register, login, logout
 
-### 🚀 Server Setup
+### 🚀 App Setup
 
-- **Express.js** custom server
-- **Vite** for fast development
-- **TypeScript** throughout
-- Asset optimization and caching
+- Remix + Vite
+- TypeScript throughout
+- TailwindCSS with design tokens and dark mode
+- Minimal shadcn/ui primitives (Button) and Theme Toggle
 
 ### 📁 Project Structure
 
 ```
 ├── app/
+│   ├── components/
+│   │   ├── theme-toggle.tsx
+│   │   └── ui/button.tsx
 │   ├── lib/
 │   │   ├── auth.server.ts      # Authentication utilities
-│   │   ├── db.server.ts        # Database client
+│   │   ├── db.server.ts        # Prisma client
+│   │   ├── env.server.ts       # Env validation (zod)
 │   │   └── session.server.ts   # Session management
-│   ├── routes/                 # Remix routes
-│   └── ...
+│   ├── routes/
+│   │   ├── _index.tsx
+│   │   ├── api.health.ts       # /api/health
+│   │   ├── dashboard.tsx       # protected
+│   │   ├── login.tsx
+│   │   ├── logout.tsx
+│   │   └── register.tsx
+│   └── root.tsx
 ├── prisma/
-│   ├── schema.prisma          # Database schema
-│   └── seed.ts               # Database seeding
-├── server.ts                 # Express server
-└── vite.config.ts           # Vite configuration
+│   ├── schema.prisma           # Database schema
+│   └── seed.ts                 # Seed data
+├── docker-compose.yml          # Postgres
+├── Dockerfile                  # App image
+└── vite.config.ts
 ```
 
 ## Available Scripts
 
-- `npm run dev` - Start development server
-- `npm run build` - Build for production
-- `npm run start` - Start production server
-- `npm run db:generate` - Generate Prisma client
-- `npm run db:migrate` - Run database migrations
-- `npm run db:studio` - Open Prisma Studio
-- `npm run db:seed` - Seed the database
+- `pnpm dev` - Start development server
+- `pnpm build` - Build for production
+- `pnpm start` - Start production server
+- `pnpm db:generate` - Generate Prisma client
+- `pnpm db:migrate` - Run database migrations
+- `pnpm db:studio` - Open Prisma Studio
+- `pnpm db:seed` - Seed the database
 
 ## Database Schema
 
 The boilerplate includes:
 
-- **Users** table with authentication
-- **Posts** table with user relationships
-- Timestamps and proper indexing
+- `User`, `Session`, and `Post` models
+- Unique constraints and helpful indexes
 
 ## API Routes
 
@@ -132,17 +138,33 @@ The boilerplate includes:
 - Server-side rendering and data loading
 - Form handling and mutations
 
-### Express API Routes
+### Health Route
 
-- `/api/health` - Health check endpoint
-- Custom API endpoints alongside Remix routes
+- `/api/health` - Health check endpoint (DB connectivity)
 
 ## Production Deployment
 
-1. Set `NODE_ENV=production`
-2. Configure your production database
-3. Build the application: `npm run build`
-4. Start the server: `npm start`
+### Docker Compose (App + Postgres)
+
+```bash
+docker compose -f docker-compose.prod.yml up -d --build
+```
+
+Environment variables used in compose:
+
+- `DATABASE_URL` (points to `db` service)
+- `SESSION_SECRET`
+
+### Manual Docker build/run
+
+```bash
+docker build -t remix-fullstack:prod .
+docker run -p 3000:3000 \
+  -e NODE_ENV=production \
+  -e DATABASE_URL=postgresql://postgres:postgres@host.docker.internal:5432/remix_boiler?schema=public \
+  -e SESSION_SECRET=change-me \
+  remix-fullstack:prod
+```
 
 ## Next Steps
 
