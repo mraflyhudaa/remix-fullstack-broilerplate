@@ -1,28 +1,43 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
-import { json, redirect } from "@remix-run/node";
-import { Form, useActionData, useSearchParams } from "@remix-run/react";
+import { redirect } from "@remix-run/node";
+import { Form, useActionData, useSearchParams, useLoaderData } from "@remix-run/react";
 import { createUserSession, getUserId, verifyLogin } from "~/lib/auth.server";
+import { getOrCreateCsrfToken, verifyCsrfToken } from "~/lib/csrf.server";
+import { rateLimit } from "~/lib/rate-limit.server";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const userId = await getUserId(request);
   if (userId) return redirect("/dashboard");
-  return json({});
+  const { token, setCookie } = await getOrCreateCsrfToken(request);
+  return Response.json(
+    { csrfToken: token },
+    { headers: setCookie ? { "Set-Cookie": setCookie } : undefined }
+  );
 }
 
 export async function action({ request }: ActionFunctionArgs) {
+  const ip = request.headers.get("x-forwarded-for") || request.headers.get("cf-connecting-ip") || "local";
+  const rl = rateLimit(`login:${ip}`);
+  if (!rl.allowed) return Response.json({ error: "Too many requests" }, { status: 429 });
+
   const formData = await request.formData();
   const email = String(formData.get("email") || "").toLowerCase();
   const password = String(formData.get("password") || "");
   const redirectTo = String(formData.get("redirectTo") || "/dashboard");
   const remember = formData.get("remember") === "on";
+  const csrf = String(formData.get("_csrf") || "");
+
+  if (!(await verifyCsrfToken(request, csrf))) {
+    return Response.json({ error: "Invalid CSRF" }, { status: 400 });
+  }
 
   if (!email || !password) {
-    return json({ error: "Email and password are required" }, { status: 400 });
+    return Response.json({ error: "Email and password are required" }, { status: 400 });
   }
 
   const user = await verifyLogin(email, password);
   if (!user) {
-    return json({ error: "Invalid credentials" }, { status: 400 });
+    return Response.json({ error: "Invalid credentials" }, { status: 400 });
   }
 
   return createUserSession({ request, userId: user.id, remember, redirectTo });
@@ -30,6 +45,7 @@ export async function action({ request }: ActionFunctionArgs) {
 
 export default function LoginRoute() {
   const actionData = useActionData<typeof action>();
+  const { csrfToken } = useLoaderData<typeof loader>();
   const [searchParams] = useSearchParams();
   const redirectTo = searchParams.get("redirectTo") ?? "/dashboard";
 
@@ -41,6 +57,7 @@ export default function LoginRoute() {
       ) : null}
       <Form method="post" className="flex flex-col gap-3">
         <input type="hidden" name="redirectTo" value={redirectTo} />
+        <input type="hidden" name="_csrf" value={csrfToken} />
         <input
           className="w-full rounded-md border px-3 py-2"
           name="email"

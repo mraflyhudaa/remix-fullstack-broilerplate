@@ -14,26 +14,27 @@ datasource db {
 }
 
 model User {
-  id             String    @id @default(cuid())
-  email          String    @unique
-  passwordHash   String
-  name           String?
-  role           String    @default("user")
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
-  sessions       Session[]
-  posts          Post[]
+  id                 String               @id @default(cuid())
+  email              String               @unique
+  passwordHash       String
+  name               String?
+  role               String               @default("user")
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+  sessions           Session[]
+  posts              Post[]
+  PasswordResetToken PasswordResetToken[]
 
   @@index([email])
 }
 
 model Session {
-  id                 String   @id @default(cuid())
-  userId             String
-  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  sessionToken       String   @unique
-  expiresAt          DateTime
-  createdAt          DateTime @default(now())
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessionToken String   @unique
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
 
   @@index([userId])
   @@index([expiresAt])
@@ -51,4 +52,16 @@ model Post {
 
   @@index([authorId])
   @@index([published])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
 }
