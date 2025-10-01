@@ -8,6 +8,7 @@ import {
 import type { LinksFunction } from "@remix-run/node";
 
 import "./tailwind.css";
+import { Toaster } from "~/components/ui/toaster";
 
 export const links: LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -41,6 +42,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </div>
         </header>
         <main>{children}</main>
+        <Toaster />
         <ScrollRestoration />
         <Scripts />
       </body>
@@ -54,16 +56,9 @@ export default function App() {
 
 export function ErrorBoundary() {
   return (
-    <html>
-      <head>
-        <title>Application Error</title>
-        <Meta />
-        <Links />
-      </head>
-      <body>
-        <h1 className="m-6 text-xl font-semibold">Something went wrong</h1>
-        <Scripts />
-      </body>
-    </html>
+    <div className="m-6">
+      <h1 className="text-xl font-semibold">Something went wrong</h1>
+      <p className="mt-2 text-sm text-muted-foreground">Please try again.</p>
+    </div>
   );
 }

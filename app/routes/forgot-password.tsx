@@ -1,5 +1,14 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { Form, useActionData } from "@remix-run/react";
+import * as React from "react";
+import { Button } from "~/components/ui/button";
+import { Input } from "~/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
+import { useToast } from "~/hooks/use-toast";
+import { Form as UiForm, FormControl, FormField, FormItem, FormLabel, FormMessage } from "~/components/ui/form";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { prisma } from "~/lib/db.server";
 import { createPasswordResetToken } from "~/lib/password-reset.server";
 import { getOrCreateCsrfToken, verifyCsrfToken } from "~/lib/csrf.server";
@@ -34,19 +43,50 @@ export async function action({ request }: ActionFunctionArgs) {
 
 export default function ForgotPasswordRoute() {
   const actionData = useActionData<typeof action>();
+  const { toast } = useToast();
+
+  React.useEffect(() => {
+    if (actionData?.error) {
+      toast({ variant: "destructive", description: actionData.error });
+    } else if (actionData?.ok) {
+      toast({ description: "If that email exists, a reset link was sent." });
+    }
+  }, [actionData, toast]);
+
+  const schema = z.object({ email: z.string().email() });
+  type Schema = z.infer<typeof schema>;
+  const rhf = useForm<Schema>({ resolver: zodResolver(schema), defaultValues: { email: "" } });
+  const formRef = React.useRef<HTMLFormElement>(null);
+  const onValid = () => formRef.current?.submit();
   return (
     <div className="mx-auto mt-24 max-w-sm">
-      <h1 className="mb-6 text-xl font-semibold">Forgot password</h1>
-      {actionData?.error ? (
-        <p className="mb-3 text-sm text-red-600">{actionData.error}</p>
-      ) : actionData?.ok ? (
-        <p className="mb-3 text-sm text-green-600">If that email exists, a reset link was sent.</p>
-      ) : null}
-      <Form method="post" className="flex flex-col gap-3">
-        <CsrfInput />
-        <input className="w-full rounded-md border px-3 py-2" name="email" type="email" placeholder="Email" required />
-        <button className="rounded-md bg-black px-3 py-2 text-white dark:bg-white dark:text-black" type="submit">Send reset link</button>
-      </Form>
+      <Card>
+        <CardHeader>
+          <CardTitle>Forgot password</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {actionData?.error ? (
+            <p className="mb-3 text-sm text-red-600">{actionData.error}</p>
+          ) : actionData?.ok ? (
+            <p className="mb-3 text-sm text-green-600">If that email exists, a reset link was sent.</p>
+          ) : null}
+          <UiForm {...rhf}>
+            <Form method="post" className="flex flex-col gap-3" ref={formRef} onSubmit={(e)=>{e.preventDefault(); rhf.handleSubmit(onValid)();}}>
+              <CsrfInput />
+              <FormField control={rhf.control} name="email" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Email</FormLabel>
+                  <FormControl>
+                    <Input type="email" {...field} name="email" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <Button type="submit">Send reset link</Button>
+            </Form>
+          </UiForm>
+        </CardContent>
+      </Card>
     </div>
   );
 }

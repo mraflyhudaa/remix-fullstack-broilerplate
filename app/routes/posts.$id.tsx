@@ -1,0 +1,72 @@
+import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
+import { Form, Link, useActionData, useLoaderData } from "@remix-run/react";
+import { prisma } from "~/lib/db.server";
+import { requireUserId } from "~/lib/session.server";
+import { Input } from "~/components/ui/input";
+import { Label } from "~/components/ui/label";
+import { Button } from "~/components/ui/button";
+
+export async function loader({ request, params }: LoaderFunctionArgs) {
+  const userId = await requireUserId(request);
+  const id = String(params.id);
+  const post = await prisma.post.findFirst({ where: { id, authorId: userId } });
+  if (!post) return new Response("Not found", { status: 404 });
+  return Response.json({ post });
+}
+
+export async function action({ request, params }: ActionFunctionArgs) {
+  const userId = await requireUserId(request);
+  const id = String(params.id);
+  const form = await request.formData();
+  const intent = String(form.get("intent") || "");
+
+  if (intent === "delete") {
+    await prisma.post.delete({ where: { id } });
+    return Response.redirect("/posts");
+  }
+
+  const title = String(form.get("title") || "");
+  const content = String(form.get("content") || "");
+  const published = form.get("published") === "on";
+  if (!title) return Response.json({ error: "Title is required" }, { status: 400 });
+  const post = await prisma.post.update({ where: { id }, data: { title, content, published, authorId: userId } });
+  return Response.json({ post, ok: true });
+}
+
+export default function PostDetailRoute() {
+  const { post } = useLoaderData<typeof loader>();
+  const actionData = useActionData<typeof action>();
+  return (
+    <div className="mx-auto mt-10 max-w-2xl">
+      <h1 className="mb-4 text-xl font-semibold">Edit post</h1>
+      {actionData?.error ? (
+        <p className="mb-3 text-sm text-red-600">{actionData.error}</p>
+      ) : null}
+      <Form method="post" className="grid gap-3">
+        <div className="grid gap-1">
+          <Label htmlFor="title">Title</Label>
+          <Input id="title" name="title" defaultValue={post.title} required />
+        </div>
+        <div className="grid gap-1">
+          <Label htmlFor="content">Content</Label>
+          <textarea id="content" name="content" defaultValue={post.content} className="min-h-40 w-full rounded-md border px-3 py-2 text-sm" />
+        </div>
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" name="published" defaultChecked={post.published} /> Published
+        </label>
+        <div className="flex gap-2">
+          <Button type="submit">Save</Button>
+          <Button variant="outline" asChild>
+            <Link to="/posts">Back</Link>
+          </Button>
+        </div>
+      </Form>
+      <Form method="post" className="mt-6">
+        <input type="hidden" name="intent" value="delete" />
+        <Button variant="outline" type="submit">Delete</Button>
+      </Form>
+    </div>
+  );
+}
+
+
